@@ -488,6 +488,50 @@ In the V1 **slow-reference mode** interpretation, SYNCR upper `B0` means `X=1`, 
 
 **Supersession notice:** Previous documentation that said `0xFFA50` was unassigned or potentially `CSBAR1`, or that `0xFFA5A` was `CSOR3`, is **superseded** by this cross-confirmed SLIM/RTC interpretation. Do not silently transfer Ghidra's older SCIM/SIM peripheral labels into the CarBerry Y5 target.
 
+
+## v68 — independent original-ROM check of PLL setup and timing calculator (2026-10-20)
+
+**Ground truth from supplied `original_carberry.bin`:** SHA-256 `b06e1282a4b274db856d250ae8a1babaf175729f7f9e9fec12e465fb774a4483`, length `0x28000`. The following expected instruction bytes were checked by a read-only Python script:
+
+```asm
+007144 LDAB #0x0F
+007146 TBYK
+007148 LDY  #0xFA00
+...
+007156 LDD  #0xB084
+00715A STD  0x04,IY     ; target 0xFFA04, SYNCR
+00715C LDD  #0xB08C
+007160 CPD  0x04,IY
+007162 BNE  0x00715C  ; loop until SLOCK bit 0x0008 becomes set
+```
+
+The reference [MC68HC16V1 SLIM technical summary](https://www.nxp.com/docs/en/product-brief/MC68HC16V1TS.pdf), section 3.3.4/3.4.6, provides *conditional* bit interpretation:
+```text
+SYNCR=0xB084 => slow-reference X=1, W=0, Y=0x30 (=48)
+f_sys=4*f_ref*(Y+1)*2^(2W+X)=392*f_ref
+TIC/TIV=0x70A0 => RTC[2:0]=0, vector A0, RTC input=f_sys/2
+SYPCR=0x0134 => timer interrupt enabled, level 3
+RTP=0x2EE0=12000 ticks
+T_IRQ=24000/f_sys; T_delta_update=192000/f_sys; 2-update difference span=384000/f_sys
+```
+
+At the standard **ASSUMED** 32,768-Hz reference: `f_sys=12,845,056 Hz`, `T_IRQ=1.868423 ms`, `T_delta_update=14.947385 ms`, and `T_delta_comparison=29.894770 ms`. The repeated 8-event counter condition is independently confirmed at `0x00033C..0x000350`. Example reference uncertainty band **if** `f_ref` were in 25–50 kHz and same slow-reference mode: `T_delta_update ≈ 19.592..9.796 ms`, `T_delta_comparison ≈ 39.184..19.592 ms`. This is not an ECU measurement, and the true `f_ref` cannot be recovered from the SYNCR setting alone: oscillator frequency and slow/fast/external mode pins are hardware-dependent. Y5-specific SLIM differences must also be excluded.
+
+**Static search caution:** Literal encoding `9A 04` (STD offset 4,IY) occurs multiple times in the packed ROM, but most uses are for different IY bases or possibly data bytes. `0x00715A` is a **confirmed** write to `SYNCR` owing to immediately preceding explicit `YK=F, IY=FA00`. No proof has yet been obtained that it is the only possible write to `0xFFA04` during all execution paths; track other writes and banked indexing before declaring constant PLL configuration.
+
+### Reproducibility tool
+
+[`tools/analysis/carberry_rtc_timing.py`](../tools/analysis/carberry_rtc_timing.py) is a standard-library-only, **read-only** script. It refuses unknown SHA-256/images, verifies instruction markers from the actual CarBerry source BIN, extracts `SYNCR`, `TIC/TIV`, `SYPCR`, `RTP`, and calculates timing for an explicitly specified *hypothetical* reference frequency:
+
+```bash
+python tools/analysis/carberry_rtc_timing.py original_carberry.bin --fref 32768
+python tools/analysis/carberry_rtc_timing.py original_carberry.bin --fref 40000
+```
+
+Local independent test of the corresponding script returned correct `SYNCR=B084`, `TIC/TIV=70A0`, `SYPCR=0134`, `RTP=2EE0`, and values listed above. There is **no generated or flashed ROM**. To turn this into measured time, obtain a reliable CarBerry HC16Y5 ECU board oscillator label/schematic or on-target timing trace; otherwise keep 14.947ms as a conditional design reference, not a validated constant.
+
+**Engineering next step for DKmode:** Determine the native SH7055 TPS signal, its update cadence and physical scale. Reimplement delta sampling on the SH7055 timebase rather than porting HC16 register writes or unvalidated CarBerry thresholds.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
