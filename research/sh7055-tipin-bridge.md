@@ -37,6 +37,18 @@ These observations are direct read-only byte extraction from pinned binaries, no
 - `SYNCR = B084`, `SYPCR = 0134`, `TIC/TIV=70A0`, `RTP=2EE0`. Under **related MC68HC16V1 SLIM slow-reference semantics** and an **assumed** 32,768-Hz oscillator: update spacing ≈14.9474 ms; sample-history comparison ≈29.8948 ms. This is **not measured ECU timing**.
 - Source threshold `0x82` has no direct equivalence to Subaru percent opening. The older XML-based ~1.63% threshold and 8 ADC count / 0.78% full-scale rough estimate are **different coordinate systems**, not established as equivalent.
 
+## v69 design correction: Subaru already has a two-step Delta TPS
+
+The pinned **v39 OEM binary** (not merely a legacy XML definition) is documented in [the native SH7055 trace](sh7055-tipin-v69-static-trace.md), verified by [read-only script](../tools/analysis/sh7055_tipin_v69_audit.py).
+
+- **0x171C6** shifts sample history \`0xFFFFB02C/B030/B034\` and writes \`0xFFFFB028 = current(0xFFFFB024) - two-steps-earlier\`. **No need to port CarBerry's two-step history as if Subaru lacked it.**
+- **0x1716E** conditions source signal from \`0xFFFF90E4\` and two corrections; \`0x1718E\` can substitute fallback ROM float **6.0**. The physical signal scale remains unknown.
+- **0x24A04** directly reads OEM delta at \`0xFFFFB028\`. Threshold branch consumers at \`0x24AA0\` (\`ROM[0x58DA4]\` raw 0.2) and \`0x24B1C\` (\`ROM[0x58DA8]\` v39 raw 25.0) are now verified.
+- The upstream long call sequence evaluates the sensor/history block at **0x10372** and OEM Tip-in at **0x103F0**, in that order. Invocation cadence is *not* known.
+- Existing native v39 Tip-in code is byte-identical to v25; modified raw table and thresholds differ from v25.
+
+**Revised DKmode strategy:** First capture/compare the native \`0xFFFFB028\` as an observer signal and characterize scheduling/physical units. Only propose a separate custom history function if evidence demonstrates the stock source or time window is deficient. Avoid double-counting native transient fuel and avoid equating HC16 byte units to SH7055 floats.
+
 ## Independent SH7055 module interface — proposed
 
 Observer-only first; do not modify injector actuation in the first phase.
