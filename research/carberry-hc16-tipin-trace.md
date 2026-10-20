@@ -220,6 +220,49 @@ Big-endian unsigned interpretations (bytes are direct file observations; roles a
 
 **Priority changes:** correct the Ghidra memory map; confirm the high segment base and ECU ROM decode; then compute exact calibration units and scheduler interval. The previous claim that calibration bytes are *missing* is **superseded** by direct file evidence.
 
+
+## Calibration bank helper and preliminary scale/scheduling evidence (2026-10-20)
+
+The **actual uploaded** `original_carberry.bin` was independently verified by hashing and byte inspection: 163,840 bytes, SHA-256 `b06e1282a4b274db856d250ae8a1babaf175729f7f9e9fec12e465fb774a4483`. Example file bytes:
+
+```text
+BIN 0x20000: 80 10 43 6F 70 79 72 69 67 68 74 44 45 4E 53 4F ... ('CopyrightDENSO2004')
+BIN 0x2065C: 80 00 7A 1C 1E 00 00 00 42 00 0C 00 40 00 40 00 40 ...
+BIN 0x213F8: 82 04 00 60 00 24
+```
+
+A **Ghidra Java helper** is committed at [`tools/ghidra/MapCarBerryCalibrationBank.java`](../tools/ghidra/MapCarBerryCalibrationBank.java). It checks existing memory, selects existing imported FileBytes, and maps original byte range `0x20000–0x27FFF` into additional runtime memory block `0x28000–0x2FFFF`; it verifies expected markers at `0x2865C`, `0x28667` and `0x293F8`. It never writes a modified BIN. **Status: source reviewed against official Ghidra Memory API, not executed in Ghidra yet.** Save a separate copy of the Ghidra program before running. Parsed values available in [calibration CSV](carberry-calibration-values.csv).
+
+### Tip-in threshold and physical units — conditional estimate only
+
+Observed in `FUN_00A7C4`: activation threshold byte at `0x0293F8` is **0x82**; differential signal's neutral code is **0x80**. Thus the minimal positive *coded* delta meeting `CMPA #0x82; BCS return` is **2** high-byte units, subject to other gates.
+
+For standard **10-bit unsigned left-justified QADC** output (see Motorola QADC reference), the 16-bit result has `ADC10 << 6`, so `1` unit of the high byte corresponds to `4` raw 10-bit counts. Then `2` units correspond to **8 raw ADC counts**, approximately **8/1023 = 0.78% of ADC full scale**. This is a *conditional estimate*, not a confirmed percent throttle opening, and near boundaries the precise original raw difference is quantized. Physical channel-to-TPS wiring, signedness/format of actual read, baseline `0x03C8`, and sampling interval still need verification. Do not transfer this value directly to SH7055 TPS percentage.
+
+### Two scheduler domains — need timing
+
+A previously unexamined code slice around `0x00033C–0x000350` was inspected as bytes:
+
+```asm
+00033C  LDAA  0x08B1,IZ
+000340  CMPA  #0x07
+000342  BCC   (branch to clear-counter path)
+000344  INCA
+000346  STAA  0x08B1,IZ
+00034A  BRA   (skip sampling block)
+00034C  CLR   0x08B1,IZ
+000350  JSR   FUN_004D5E
+```
+
+The branch structure suggests `FUN_004D5E` is performed **once per ~8 visits** to this handler (assuming no other writes/reset to `0x08B1` and the expected HC16 branch decode). This does *not* give milliseconds: the frequency/caller of this handler and concurrent updates are not established. The Tip-in calculation `FUN_00A7C4` is explicitly called at `0x000BE8` within `FUN_000BA6`, the same dispatched group as `FUN_004E0A` at `0x000BB6`. These can be distinct from the sample-history update schedule. A two-history-step comparison could therefore cover ~16 handler visits, but this is only a **hypothesis** until Ghidra branch targets/cadence are confirmed.
+
+### Next validation
+
+1. In Ghidra run the file-backed calibration mapping helper; return console MATCH/MISMATCH lines and Memory Map screenshot.
+2. Disassemble `0x00033C–0x000354`, follow direct caller or interrupt-vector relationship, and search writes to `RAM[0x08B1]`.
+3. Establish actual QADC result format and whether channel code 0x30 truly corresponds to the vehicle TPS signal.
+4. Determine update intervals for `FUN_004D5E` vs `FUN_004E0A/FUN_00A7C4` before estimating delta-TPS in percent per second.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
