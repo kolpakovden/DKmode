@@ -174,6 +174,52 @@ Ghidra Memory Map is file-backed `0x000000–0x027FFF` (160 KiB), so `0x02865C�
 
 **Recommended next action:** verify bin provenance/size and memory mapping; inspect how EK is preserved through earlier `FUN_000B40` and four calls before `FUN_004E0A`. Most importantly, obtain a full ROM image/companion calibration bank if one exists; otherwise mark those numeric calibrations as inaccessible in this reference.
 
+
+## Corrected ROM file-to-CPU calibration mapping — inspected original binary (2026-10-20)
+
+**Major correction to preceding missing-data hypothesis.** The researcher supplied the **actual** `original_carberry.bin`; byte inspection established size **163,840 bytes / 0x28000**, SHA-256 `b06e1282a4b274db856d250ae8a1babaf175729f7f9e9fec12e465fb774a4483`. Verified code instructions at file offsets `0x0009C8`, `0x000A72`, `0x004EEE` match Ghidra output. The BIN is **not proven truncated**.
+
+The source image appears **packed from at least two disjoint logical memory segments**. The likely calibration mapping is:
+
+```text
+HC16 runtime 0x00000..0x1FFFF  <- BIN file 0x00000..0x1FFFF  (candidate)
+HC16 runtime 0x28000..0x2FFFF  <- BIN file 0x20000..0x27FFF  (strong hypothesis)
+                                      file offset = HC16 address - 0x8000
+```
+
+At file offset `0x20000`, the data begins with the embedded header `CopyrightDENSO2004`, followed by `CarBerry` and a contiguous table area. This lends strong structural support to a distinct calibration segment. Prior Ghidra import erroneously mapped the packed file contiguously `0x00000..0x27FFF`. The inferred runtime calibration `0x02865C` is located at **file offset `0x02065C`**, not at `0x00865C`, and the data at the corrected offset matches many independent calibration usages semantically. This is a **strongly supported mapping hypothesis**, pending independent physical MCU memory-map/dump confirmation.
+
+### Values extracted directly from uploaded BIN
+
+Big-endian unsigned interpretations (bytes are direct file observations; roles are from disassembled control flow):
+
+| HC16 address | File offset | Bytes | Unsigned | Inferred role |
+|---|---|---|---:|---|
+| 0x02865C | 0x02065C | 80 | 128 | 8-bit threshold |
+| 0x02865D | 0x02065D | 00 7A | 122 | 16-bit threshold |
+| 0x02865F | 0x02065F | 1C | 28 | low hysteresis threshold |
+| 0x028660 | 0x020660 | 1E | 30 | high hysteresis threshold |
+| 0x028661 | 0x020661 | 00 00 | 0 | 16-bit condition threshold |
+| 0x028663 | 0x020663 | 00 42 | 66 | delta comparison threshold |
+| 0x028665 | 0x020665 | 00 0C | 12 | adaptation condition threshold |
+| 0x028667 | 0x020667 | 00 40 | 64 | upward step for 0x03C8 |
+| 0x028669 | 0x020669 | 00 40 | 64 | downward step for 0x03C8 |
+| 0x02866B | 0x02066B | 00 40 | 64 | required baseline-to-filtered gap |
+| 0x02866D | 0x02066D | 3F 7D | 16253 | 0x03C8 upper cap |
+| 0x02866F | 0x02066F | 0F 5C | 3932 | 0x03C8 lower floor |
+| 0x028671 | 0x020671 | 3F 7D | 16253 | initial/reset 0x03C8 |
+| 0x02867A | 0x02067A | 00 96 | 150 | 0x17DC counter threshold |
+| 0x0293F8 | 0x0213F8 | 82 | 130 | Tip-in activation threshold (byte compare; units unverified) |
+| 0x0293F9 | 0x0213F9 | 04 | 4 | repeat/counter guard |
+| 0x0293FA | 0x0213FA | 00 60 | 96 | threshold for calculated transient term |
+| 0x0293FC | 0x0213FC | 00 24 | 36 | 0x0B04 guard threshold |
+
+**Interpreting the corrected baseline**: init `B=16253`, permitted range [3932,16253], symmetric step 64 (per qualifying update, not per millisecond). Actual physical units and update frequency remain unknown. Qualifying flags and time gating must be replicated before this has tuning meaning.
+
+**Recommended Ghidra fix:** keep an untouched backup of the current project. In the working copy, create a *file-backed mapped block* starting at `0x028000`, length `0x8000`, from original file bytes offset `0x020000`, or reimport using a documented segmented loader. Do not create an uninitialized RAM block or fill with `FF`. Avoid assuming all addresses use `file offset = logical - 0x8000`; this correction is for the identified high calibration segment. Check that `Go To 0x02865C` displays `80 00 7A 1C 1E 00 00 ...` and `0x0293F8` displays `82 04 00 60 00 24`. Any old cross-reference/data analysis based on contiguous mapping must be revalidated.
+
+**Priority changes:** correct the Ghidra memory map; confirm the high segment base and ECU ROM decode; then compute exact calibration units and scheduler interval. The previous claim that calibration bytes are *missing* is **superseded** by direct file evidence.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
