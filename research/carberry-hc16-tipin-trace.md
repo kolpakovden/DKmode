@@ -263,6 +263,60 @@ The branch structure suggests `FUN_004D5E` is performed **once per ~8 visits** t
 3. Establish actual QADC result format and whether channel code 0x30 truly corresponds to the vehicle TPS signal.
 4. Determine update intervals for `FUN_004D5E` vs `FUN_004E0A/FUN_00A7C4` before estimating delta-TPS in percent per second.
 
+
+## v63 — Ghidra deep-scan cross-validation of TPS delta (2026-10-20)
+
+Evidence supplied as `carberry_tps_delta_deep(3).txt` and `carberry_indexed_writes(3).csv`; both are generated **read-only static scan reports**, not executable patches. Ghidra database: `original_carberry.bin`, `HC-16:BE:16:default`, **34,131 recognized instructions**, **1,111 functions**.
+
+### Target RAM 0x17D6..0x17DA, actual recognized instructions
+
+The report's `DIRECT_TARGET and REFERENCES (29)` category includes **12 candidate direct writes**, **9 actual reads**, and **8 additional DATA XREF records**. XREF records are not independent instructions. Direct evidence (subset, exact):
+
+| Address | Operation | RAM target | Interpretation |
+|---|---|---|---|
+| `0x004DB4` | `CLR` | `0x17D6` | clear state |
+| `0x004DCE` | `STAA` | `0x17D6` | update state |
+| `0x004DF4` | `STAA` | `0x17DA` | computed biased delta |
+| `0x004DFC` | `STAA` | `0x17D8` | shift older history |
+| `0x004E04` | `STAA` | `0x17D7` | shift current into history |
+| `0x004E5C` | `STAA` | `0x17D9` | publish active delta |
+| `0x006D30 / 0x006D4C` | `CLR / STAB` | `0x17D6` | initialization |
+| `0x006D52 / 0x006D56` | `STAA / STAA` | `0x17D7 / 0x17D8` | initialize history |
+| `0x006D5C / 0x006D60` | `STAA / STAA` | `0x17D9 / 0x17DA` | neutral `0x80` reset |
+
+Reads from `FUN_00A7C4` at `0x00A7D0`, `0x00A7E2`, `0x00A7FE`, `0x00A832`, `0x00A8E8` all refer to `0x17D9`. Together these support the same dataflow reconstructed manually:
+
+```text
+processed input 0x17C8
+ -> FUN_004D5E: compare older measurement 0x17D8, write 0x17DA
+ -> shift 0x17D7->0x17D8, 0x17C8->0x17D7
+ -> FUN_004E0A: 0x17DA->0x17D9
+ -> FUN_00A7C4: consume 0x17D9 as Tip-in input
+```
+
+**Negative evidence, bounded:** `POSSIBLE_POINTER_BASES (0)` found no base-pointer patterns under this scan's heuristics. Literal patterns for `0x17D6..0x17DA` found 21 recognized in-code occurrences. This **does not prove** the absence of indirect writes, register-index aliasing, data movement through other instruction types, interrupts, or instructions in undefined regions.
+
+### Indexed-write CSV interpretation
+
+The CSV contains exactly **5,561 rows** classified as index-based writes **throughout the whole disassembly**. These are overwhelmingly *not* writes to the Tip-in state; do not label this as '5,561 TPS writes'. A filtering pass confirms the direct instructions above appear in the CSV. The same file lists exactly two visible indexed writes to counter `0x08B1`:
+
+```asm
+000346  STAA 0x08B1,IZ
+00034C  CLR  0x08B1,IZ
+```
+
+This supports the earlier handler cadence hypothesis: at `0x00033C` the routine compares `0x08B1` to `7`; values `0..6` are incremented, while value `>=7` clears the counter and calls `FUN_004D5E` at `0x000350`. Under regular execution and no other counter writes, this means one `FUN_004D5E` call per **8 invocations** of this handler. Raw BIN bytes `0x00033C..0x000353` were independently checked against this disassembly. **Not yet a millisecond cadence**.
+
+### Research limitations and next action
+
+- Report lists **57 non-instruction regions**, including substantial bytes imported as contiguous code/data without complete disassembly. The broad static search cannot prove coverage of all code.
+- The `FUN_004D5E` callsite is in a region reported as `<unassigned>` function: identify the enclosing routine or ISR and its actual invocation frequency.
+- `FUN_004E0A` and `FUN_00A7C4` run in a different dispatch group; track timing between history update and active Tip-in evaluation.
+- Exact TPS identity, QADC channel map, conversion format, vehicle TPS units, and relevant physical signal scaling are **still unverified**.
+- The earlier Ghidra Script Manager notice (`1 source file with errors`) for the **calibration mapping helper** is not cleared by successful execution of this separate deep-scan script; obtain the Java compilation log and repair it independently.
+
+**Recommended user action:** obtain Ghidra Listing `0x0002F4–0x000378` including XREFs at beginning, plus XREFs to `0x0002F4` or the entry-point of the handler. That establishes which scheduler/interrupt reaches `0x000350` and may allow a measured cadence when combined with relevant register/timer setup.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
