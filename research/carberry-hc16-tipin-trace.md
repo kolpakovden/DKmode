@@ -120,6 +120,13 @@ Ghidra establishes a direct caller `FUN_0009EE:0x000AEA` -> `FUN_000BA6:0x000BA6
 
 The value of EK on entry to `FUN_004E0A` is still unknown: inspect `FUN_0009EE` around `0x000ACA–0x000B00` AND possible `TBEK` in four predecessor callees (including nested calls), or global initialization. Neither the inferred `0x02865C` effective calibration address nor the file offset is yet proven.
 
+
+## Dispatcher scheduling clue: FUN_0009EE at 0x000ACA–0x000B26 (2026-10-20)
+
+Pasted Ghidra trace shows `FUN_0009EE` conditionally invokes `FUN_000B40` at `0x000AD8` **before** selecting among multiple task handlers. It increments byte `RAM[0x08AB]` at `0x000ADC–0x000AE2`; then uses `LSRA; BCS` to dispatch based on successive bits of the incremented counter. When the first tested (bit 0) is clear, `FUN_000BA6` is called at `0x000AEA`. Other branches call `FUN_000C58`, `FUN_000C9C`, `FUN_000D2E`, `FUN_000E68`, `FUN_000EAA`, `FUN_000EF0` etc. The earlier `ANDA #0xFC` and compare to `RAM[0x08AA]` additionally gate whether this dispatch runs at all. Thus the block appears to divide workloads among scheduler ticks; **actual wall-clock cadence remains unknown**, and it does not yet prove the invocation cadence of `FUN_004D5E` or `FUN_00A7C4`.
+
+**Bank caveat:** This `0x000ACA–0x000B26` slice contains no `TBEK`. `FUN_000B40`, which runs before the selected branch, might alter bank state (not yet proven). Next inspect `FUN_000B40` and its callees, together with any `TBEK` instructions along the path leading into `FUN_000BA6`. Also verify earlier bank setup in `FUN_0009EE`, not visible in supplied slice.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
