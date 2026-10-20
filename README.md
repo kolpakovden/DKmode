@@ -45,6 +45,8 @@ DKmode также не заменяет и не переписывает ист�
 - [План исследований](docs/roadmap.md)
 - [Начальный анализ SD / Tip-in](research/sd-tip-in.md)
 - [CarBerry HC16: трассировка QADC → Tip-in и адаптивной поправки (v58)](research/carberry-hc16-tipin-trace.md)
+- [SH7055: независимая спецификация Tip-in (observer-first)](research/sh7055-tipin-bridge.md)
+- [CarBerry RTC: проверяемый офлайн-расчётчик](tools/analysis/carberry_rtc_timing.py)
 
 ## Правила работы
 
