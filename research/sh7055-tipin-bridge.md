@@ -49,6 +49,12 @@ The pinned **v39 OEM binary** (not merely a legacy XML definition) is documented
 
 **Revised DKmode strategy:** First capture/compare the native \`0xFFFFB028\` as an observer signal and characterize scheduling/physical units. Only propose a separate custom history function if evidence demonstrates the stock source or time window is deficient. Avoid double-counting native transient fuel and avoid equating HC16 byte units to SH7055 floats.
 
+## v70 scheduler checkpoint: precise native time is NOT yet known
+
+The pinned v39 task table has **19 records**, with OEM Tip-in call chain under **task #9**: descriptor \`0x4730\` -> state RAM \`0xFFFF71E4\` -> callback \`0x6330\` -> \`0x1028C\` -> \`0x171C6\` and \`0x24A04\`. See [v70 task scheduler trace](sh7055-tipin-v70-task-scheduler.md) and [SHA-pinned verifier](../tools/analysis/sh7055_task_v70_audit.py). This scheduler and task-9 handler are byte-identical between v25 and v39.
+
+**Do not silently promote scheduler descriptor \`0x04000100\` into 1ms, 10ms, 256 ticks, or other assumed units.** A confirmed hardware tick and wakeup path are still missing. The two-step Subaru delta history spans **2 × actual task9 execution interval**, which may include jitter. Carry time as an explicit input in the observer-only model until hardware/vector tracing or bench timing resolves it.
+
 ## Independent SH7055 module interface — proposed
 
 Observer-only first; do not modify injector actuation in the first phase.
