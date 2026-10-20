@@ -10,6 +10,21 @@ Translate the *observable behavior* of CarBerry's HC16 Tip-in input/delta logic 
 - Proposed target: modified `Forester_SG9_MAP_clean_v39.bin`, 512 KiB, ROM ID `A2WC0MME`, expected SHA-256 `43a4751d68da4ddca9d483c1723a78f04c85ad982423f48177402f9962245ad4`. Re-verify original byte length/hash before any build. No in-car confirmation available.
 - Historical mapping and comparison in [forester_A2WC012E / SD transient fueling](https://github.com/kolpakovden/forester_A2WC012E/blob/main/docs/sd-transient-fueling.md) uses **v25**. Its `0x58DA8 = 1.000 ms` and other calibration values are not automatically representative of v39 and must be read anew in v39.
 
+## Offline target v39 byte audit (actual source files)
+
+Both CarBerry and Forester binaries are available in the local research session. The v39 target file is **actually present**, size 524,288 bytes and hash `43a4751d68da4ddca9d483c1723a78f04c85ad982423f48177402f9962245ad4`. Comparison to original clean v25 (`2ca539d0c47e3b1eec96c41e1e514c7b19b0e3786e9d826a41d3a3505b4c5d99`) establishes:
+
+| Forester BE ROM offset | v25 raw content | v39 raw content | Meaning/evidence boundary |
+| --- | --- | --- | --- |
+| `0x58DA4` | float32 `0.2` | float32 `0.2` | Minimum throttle-delta activation definition label; same raw |
+| `0x58DA8` | float32 `250.0` | float32 **`25.0`** | Minimum pulse activation definition label; raw **10× lower** |
+| `0x59B3C` | float32 `0.4` first axis value | float32 `0.4` | At least first axis value unchanged |
+| `0x59B84` | first 6 uint16 BE: `33,75,115,158,243,284` | **`25,56,86,124,191,224`** | Actual Tip-in lookup table values are lower |
+
+These observations are direct read-only byte extraction from pinned binaries, not guesses from XML. The older v25 document's statement `minimum pulse activation = 1.000 ms` refers to **v25 under its XML/display scaling**. If the same *linear* display scale applies to v39, a tenfold smaller raw value could correspond to 0.100 ms, **but that physical conversion must be checked in a suitable definition and in the consuming SH7055 function before presenting it as fact**.
+
+**Implication:** A proposal to lower v39's threshold on the basis of the old v25 comparison is **not warranted**. v39 already has a far smaller raw activation threshold and lower initial Tip-in table entries. This makes observer-only A/B comparison against **actual v39** essential before enabling any new fuel actuator or additional pulse: double enrichment/rich spikes are plausible risks, not validated effects.
+
 ## HC16 behaviors supported by disassembly
 
 - Analog result (candidate, vehicle TPS wiring not proven) -> subtraction of mutable 16-bit baseline `0x03C8` -> 8-bit high-byte signal `0x17C8`.
