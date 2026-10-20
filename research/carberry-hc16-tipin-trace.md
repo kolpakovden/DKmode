@@ -81,6 +81,22 @@ Thus the down branch has a verified **calibration-controlled lower bound**, not 
 4. Identify caller/scheduler timing for `FUN_001712`, `FUN_004D5E`, `FUN_004E0A`, and `FUN_00A7C4`; reproduce two-sample deltas with a controlled timing model.
 5. Only afterward define an **independent SH7055 implementation spec** using confirmed native v39 throttle data (prefer known physical units), normalization, state, gates, and logging. Do not patch production ROM at this stage.
 
+
+## Follow-up: FUN_004E0A full listing and EK bank uncertainty (2026-10-20)
+
+Ghidra Memory Map supplied by the researcher: imported `RAM` block at `0x000000–0x027FFF` (length `0x28000`, backing `original_carberry.bin`), plus `IMB` at `0x0F0000–0x0FFFFF` (non-file-backed). Thus `DAT_02865C` inferred by Ghidra lies outside current file-backed block. Opening `0x00865C` instead exposes instructions (`LDE #0xFFFF`, `LDD #0xFFFF`, etc.), **not proven calibration**. Do **not** create uninitialized blocks and treat them as actual ROM bytes or assume a modulo address mapping.
+
+Full pasted `FUN_004E0A` disassembly (`0x004E0A–0x004FBA`) contains **no `TBEK`**. Its only recorded caller is `FUN_000BA6` at `0x000BB6`. The current bank value must be traced in caller/call-chain or ECU startup initialization; Ghidra's `EK` offset annotation alone does not validate ROM file offsets.
+
+New observations beyond the baseline-adaptation branches:
+
+- `0x004E68–0x004E80`: `FUN_0087DE` updates `RAM[0x17C6]` using `RAM[0x17BE]`, previous state and argument setup; precise math remains unresolved.
+- `0x004E84–0x004EA4`: absolute 16-bit difference between `0x17BE` and `0x17C2` gates `0x17E6` accumulation via calibration `0x028663`.
+- `0x004EA8–0x004EC6`: threshold-based bit-2 hysteresis/state `0x17D2` through `0x02865F`/`0x028660`.
+- `0x004F80–0x004FBA`: independent `0x17DC` counter/state gate, compared against `0x02867A`, setting bit 7 of `0x03CA` when threshold is reached. This is **after** the store at `0x004F7C` and does not itself write `0x03C8`.
+
+**Highest-priority next step:** inspect `FUN_000BA6` around `0x000BA6–0x000BC0` plus its caller(s), and search `TBEK` in initialization/call chain. Identify any ROM load mapping/banking independently before extracting calibration values `0x02865C–0x02867A`. The physical TPS meaning remains unproven.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
