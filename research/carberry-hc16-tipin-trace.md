@@ -155,6 +155,25 @@ Researcher screenshot of **Search Program Text → Instruction Mnemonics** repor
 
 Next evidence requested: disassembly `0x0009B0–0x0009E0` and `0x000A58–0x000A90`, especially instructions loading B immediately before both `TBEK`. Then verify no intervening bank changes before `0x000BB6`; only after that map EK-relative calibration addresses to actual ROM bytes.
 
+
+## EK proven set to bank 2 in boot/dispatcher (2026-10-20)
+
+Researcher's Ghidra disassembly:
+
+```asm
+0009C8  LDAB #0x02
+0009CA  TBEK
+...
+000A72  LDAB #0x02
+000A74  TBEK
+```
+
+At those instruction points **EK=2** is established explicitly, so EK-relative displacement `0x865C` yields logical `0x2865C` **if no intervening callee changes EK**. The supplied text confirms the bank assignment, but does not prove bank-preservation through all nested calls. Two other `TBEK` instances were not found in the analyzed mnemonic search; incompletely disassembled code could still contain bank modifications.
+
+Ghidra Memory Map is file-backed `0x000000–0x027FFF` (160 KiB), so `0x02865C–0x02867A` is **out of range** for this loaded image. This is not fixed by choosing `0x00865C`, nor by allocating an uninitialized memory block. Investigate whether source ROM dump is partial or uses another ROM bank/device mapping, and obtain source bytes covering the effective addresses. Do not fabricate calibration values.
+
+**Recommended next action:** verify bin provenance/size and memory mapping; inspect how EK is preserved through earlier `FUN_000B40` and four calls before `FUN_004E0A`. Most importantly, obtain a full ROM image/companion calibration bank if one exists; otherwise mark those numeric calibrations as inaccessible in this reference.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
