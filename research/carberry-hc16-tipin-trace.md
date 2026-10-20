@@ -402,6 +402,26 @@ Two other vectors appear in this region:
 
 **Recommended targeted next Ghidra query:** locate all references to `DAT_0FFA50`, and check code assigning the vector `0xA0` to hardware peripherals or configuring registers in the `0xFFA00` window (distinguish adjacent SPI/QADC/timer modules). Search by Ghidra **Instruction Operands** or direct scalar reference, and ensure **Search Selection is OFF**. An additional useful cut is `0x0003AA–0x0003CE` already documented, so do not request it again.
 
+
+## v66 — Ghidra search for `DAT_0FFA50` (2026-10-20)
+
+The researcher searched **Instruction Operands** for `DAT_0FFA50` in the original HC16 Ghidra project and supplied a screenshot showing six references:
+
+| Code address | Ghidra-recognized mnemonic | Role as of this evidence |
+|---|---|---|
+| `0x0002FE` | `BCLRW 0x50,IY,...` | The previously validated `0x0800` bit clear in ISR A0 |
+| `0x007232` | `STD 0x50,IY,...` | 16-bit register write, potential initial configuration |
+| `0x007656` | `LDD 0x50,IY,...` | 16-bit register read |
+| `0x007F16` | `BSETW 0x50,IY,...` | Set selected register bits |
+| `0x007F22` | `BCLRW 0x50,IY,...` | Clear selected register bits |
+| `0x007F28` | `BCLRW 0x50,IY,...` | Clear selected register bits |
+
+This list is **directly observed in screenshot**, but Ghidra's preview is truncated: masks, input value to `STD`, controlling branch conditions, and register-bank setup are **not yet known**. Do not assign a specific timer module or interrupt frequency from this screenshot.
+
+**Highest-value next Ghidra listing cuts:** `0x007200–0x007250` (around `STD`), `0x007EF0–0x007F44` (set/clear bit sequence), and secondarily `0x007638–0x007670` (readback). Preserve the setup of `IY/YK`, loaded data register `D`, masks, and adjacent routine boundaries. Observe that `0x007F16` belongs to the function encompassing `0x007F08`; `0x007232` to the function encompassing `0x007144` on the screenshot. Only after this trace inspect the specific peripheral's register map to establish vector A0's triggering source and period.
+
+**Caveat:** Program Text lists only analyzed, labeled operands; missing or computed register accesses are possible. Existing mapping `0xFFA50` is from YK=F/IY=FA00 in the validated `0x0002FE` ISR; verify corresponding context around the additional matches.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
