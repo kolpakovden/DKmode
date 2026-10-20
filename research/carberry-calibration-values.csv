@@ -1,0 +1,19 @@
+HC16_address,BIN_offset,bytes,uint_big_endian,tentative_role
+0x02865C,0x2065C,80,128,Input threshold
+0x02865D,0x2065D,00 7A,122,Gate threshold
+0x02865F,0x2065F,1C,28,Hysteresis low
+0x028660,0x20660,1E,30,Hysteresis high
+0x028661,0x20661,00 00,0,Gate comparison
+0x028663,0x20663,00 42,66,Delta threshold
+0x028665,0x20665,00 0C,12,Adaptation guard
+0x028667,0x20667,00 40,64,Baseline increase step
+0x028669,0x20669,00 40,64,Baseline decrease step
+0x02866B,0x2066B,00 40,64,Baseline gap gate
+0x02866D,0x2066D,3F 7D,16253,Baseline cap
+0x02866F,0x2066F,0F 5C,3932,Baseline floor
+0x028671,0x20671,3F 7D,16253,Baseline initialization
+0x02867A,0x2067A,00 96,150,Counter gate
+0x0293F8,0x213F8,82,130,Tip-in activation guard
+0x0293F9,0x213F9,04,4,Tip-in repeat guard
+0x0293FA,0x213FA,00 60,96,Tip-in transient threshold
+0x0293FC,0x213FC,00 24,36,Tip-in accumulation guard
