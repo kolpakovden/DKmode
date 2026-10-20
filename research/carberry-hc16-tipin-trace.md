@@ -317,6 +317,56 @@ This supports the earlier handler cadence hypothesis: at `0x00033C` the routine 
 
 **Recommended user action:** obtain Ghidra Listing `0x0002F4–0x000378` including XREFs at beginning, plus XREFs to `0x0002F4` or the entry-point of the handler. That establishes which scheduler/interrupt reaches `0x000350` and may allow a measured cadence when combined with relevant register/timer setup.
 
+
+## v64 — vector 0xA0 interrupt, eight-event delta update (2026-10-20)
+
+**Primary evidence:** user-provided Ghidra listing `0x0002F4–0x000378`, independently confirmed in the original 160-KiB CarBerry image. The big-endian interrupt vector table at file address `0x000140` holds `02 F4`, while `0x000142` holds `03 74`. CPU16 vector addresses are twice the vector number, so these map to **vector `0xA0` → ISR `0x0002F4`** and **vector `0xA1` → ISR `0x000374`**. Both are user-defined vectors under the CPU16 reference architecture. Reference: [Motorola CPU16 exception vectors](https://www.nxp.com/docs/en/application-note/MC68HC16Z1TUT.pdf).
+
+### ISR trace
+
+```asm
+0002F4  PSHM   #0x3F             ; save context
+0002F6  LDAB   #0x0F
+0002F8  TBYK
+0002FA  LDY    #0xFA00
+0002FE  BCLRW  0x0050,IY,0x0800 ; clear bit 11 at effective 0xFFA50
+000304  LDAB   #0x02
+000306  TBZK
+000308  LDZ    #0
+000310  JSR    FUN_001712       ; read/transfer QADC results (waits for completion)
+...
+00033C  LDAA   0x08B1,IZ
+000340  CMPA   #0x07
+000342  BCC    LAB_00034C
+000344  INCA
+000346  STAA   0x08B1,IZ
+00034A  BRA    LAB_00036C
+00034C  CLR    0x08B1,IZ
+000350  JSR    FUN_004D5E       ; update history and biased differential
+000354  JSR    FUN_012156
+000358  LDAA   0x08B2,IZ
+00035C  CMPA   #0x07
+00035E  BCC    LAB_000368
+000360  INCA
+000362  STAA   0x08B2,IZ
+000366  BRA    LAB_00036C
+000368  CLR    0x08B2,IZ
+00036C  BCLR   0x08,0x08A7,IZ
+000370  PULM   #0x7E
+000372  RTI                      ; interrupt return
+```
+
+**Conclusions at instruction level:**
+
+- `FUN_001712` is invoked in every run of this ISR before the delta calculation branch. Whether fresh ADC results are available/ready on every run depends on QADC scheduling and its wait logic.
+- `FUN_004D5E` is invoked **once per 8 executions** of this ISR in its normal counter cycle, assuming `0x08B1` is neither modified elsewhere nor corrupted. Read-only indexed-write CSV reports the `0x08B1` direct stores only at `0x000346` and `0x00034C`; this is corroborative but not exhaustive for aliasing.
+- `0x08B2` is itself incremented/reset *within* the 8-event branch, therefore its full reset cycle spans **64 ISR executions** under identical assumptions. Its engineering purpose is **not established** by this snippet.
+- The formula is **`T_delta_update = 8 × T_ISR`**. If samples are consistently spaced and history shifts normally, comparison against `0x17D8` covers **two such sample intervals ≈ `16 × T_ISR`**. This is not a value in milliseconds until `T_ISR` is independently known.
+
+**Important hardware register caveat:** `0x0002FE` uses YK=F and IY=FA00 to target **`0xFFA50` bit `0x0800`**. Clearing this bit at ISR entry is consistent with acknowledging an interrupt source, but the exact peripheral/flag is not yet proven. In the **related, not necessarily identical** MC68HC16Y3/916Y3 manual, `$YFFA50` is marked **Not Used** (Table D-2); see [NXP official manual](https://www.nxp.com/docs/en/user-guide/MC68HC16Y3UM.pdf). Do **not** label it as a proven periodic timer, assign a clock frequency, or conflate Y3 with the actual CarBerry HC16 variant. A custom/external mapping, a related but different chip, or incomplete peripheral annotations remain hypotheses.
+
+**Next targeted research:** in Ghidra find all references to `DAT_0FFA50` or instruction operands `0x50,IY` while `IY=FA00`, plus initialization configuring vector `0xA0`. Inspect the adjacent vector `0xA1` ISR `0x000374` for shared peripheral setup. Find the relevant interrupt controller/timer clock and divisor, then compute the period in milliseconds. Keep study offline; no modification to flashable ROM.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
