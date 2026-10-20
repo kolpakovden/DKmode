@@ -422,6 +422,72 @@ This list is **directly observed in screenshot**, but Ghidra's preview is trunca
 
 **Caveat:** Program Text lists only analyzed, labeled operands; missing or computed register accesses are possible. Existing mapping `0xFFA50` is from YK=F/IY=FA00 in the validated `0x0002FE` ISR; verify corresponding context around the additional matches.
 
+
+## v67 — SLIM RTC timer identified; precise timing formula reconstructed (2026-10-20)
+
+**Important correction to v64–v66:** The interpretation of `0xFFA50` as an unknown or potentially chip-select register came from the **wrong HC16 peripheral model**. Automotive MCU selection guide identifies the **MC68HC16Y5 as SLIM + ACS**, not the older Y1/Y3 SCIM map and not the Z1 SIM map. Manufacturer references:
+
+- [Motorola Automotive Selector Guide SG187](https://doczz.net/doc/759628/sg187--automotive-selector-guide): MC68HC16Y5 160 KiB ROM, 4 KiB RAM, **SLIM+ACS**.
+- [Motorola MC68HC16V1 Technical Summary, SLIM address map pp. 13–14, system protection and RTC pp. 28–35](https://www.nxp.com/docs/en/product-brief/MC68HC16V1TS.pdf): a **closely related SLIM** implementation, not a publicly confirmed byte-identical Y5 manual.
+
+Independent SLIM register mapping matches the CarBerry firmware **across addresses, write values, ISR vector, and status acknowledgement**:
+
+| Effective HC16 address | SLIM register (V1 reference) | CarBerry write/observation |
+|---|---|---|
+| `0xFFA50` | `SYPCR` System Protection Control | `0x00722E–0x007232: LDD #0x0134; STD 0x50,IY` |
+| `0xFFA52` | `TIC` Timer Control (high byte) | `0x007228–0x00722A: LDAA #0x70; STAA 0x52,IY` |
+| `0xFFA53` | `TIV` Timer Interrupt Vector (low byte) | `0x007224–0x007226: LDAA #0xA0; STAA 0x53,IY` |
+| `0xFFA5A` | `RTP` Real-Time Period | `0x007F1C–0x007F20: LDD #0x2EE0; STD 0x5A,IY` |
+| `0xFFA50` | `SYPCR.RZ` timer-zero flag, bit `0x0800` | `0x0002FE: BCLRW 0x50,IY,0x0800` from vector `0xA0` ISR |
+
+**The Ghidra label `CSOR3` at `0xFFA5A` is inconsistent with SLIM; use `RTP` for this MCU family pending a dedicated Y5 data sheet.** The adjacent low-byte write `0xA0` is **precisely a timer interrupt vector**, not coincidentally a chip-select option value.
+
+Decode by SLIM reference:
+- `SYPCR=0x0134`: `TIEN=1`, `TIQL[2:0]=3` (interrupt level 3), `BME=1`, `RZ` clear before ISR.
+- `TIC=0x70`: `SWC[2:0]=111` (software watchdog clock disabled), `RTC[2:0]=000` (RTC ticks at `f_sys/2`).
+- `TIV=0xA0`: IRQ vector 0xA0 — exactly table word `[0x140] = 0x02F4`, our active ISR.
+- `RTP=0x2EE0 = 12000`: realtime timer reload count.
+- `FUN_007F08` briefly sets/clears `SYPCR.REN` bit `0x8000` surrounding RTP write, then clears `0x0C00` (RZ/SZ status). `0x007656–0x007660` reads `SYPCR`, masks `0xF3FF` to ignore status flags, checks against `0x0134`; these checks fit SLIM and strongly corroborate mapping.
+
+**Resulting nominal periods (if Y5 SLIM clock semantics are the same as this V1 reference and timer enabled):**
+
+```text
+f_RTC = f_sys / 2
+T_IRQ_A0 = 12000 / (f_sys/2) = 24000/f_sys seconds
+T_FUN_004D5E = 8*T_IRQ_A0 = 192000/f_sys seconds
+T_input_history_span = 2*T_FUN_004D5E = 384000/f_sys seconds
+```
+
+| Assumed f_sys | RTC IRQ | Delta history update (÷8) | Two-update comparison span |
+|---:|---:|---:|---:|
+| 16 MHz | 1.500 ms | 12.000 ms | 24.000 ms |
+| 20 MHz | 1.200 ms | 9.600 ms | 19.200 ms |
+| 24 MHz | 1.000 ms | 8.000 ms | 16.000 ms |
+
+These are **conditional values**, not measured ECU timing. The 8:1 divider is directly evidenced by ISR `0x00033C–0x000350`. Actual `f_sys` depends on oscillator/reference and PLL configuration.
+
+### Clock configuration candidate from original ROM
+
+Direct file inspection also finds (runtime addresses equal BIN offsets in low code region):
+
+```asm
+007144  LDAB  #0x0F
+007146  TBYK
+007148  LDY   #0xFA00
+...
+007156  LDD   #0xB084
+00715A  STD   0x04,IY       ; SYNCR = 0xB084 at 0xFFA04
+00715C  LDD   #0xB08C
+007160  CPD   0x04,IY       ; compare against lock-status value
+007162  BNE   ...          ; wait for PLL lock
+```
+
+In the V1 **slow-reference mode** interpretation, SYNCR upper `B0` means `X=1`, `W=0`, `Y=0x30=48`, so `f_sys = 4*f_ref*(Y+1)*2^(W+X) = 392*f_ref`. **If** the external reference actually is 32.768 kHz and these mode/frequency fields hold unchanged, `f_sys ≈ 12.845056 MHz`, yielding `T_IRQ ≈ 1.868 ms`, `T_delta ≈ 14.947 ms`, and input history span ≈ `29.895 ms`. This is a **plausible clock scenario, not a verified value**: Y5 may differ from the V1 PLL bitfield and source/clock-mode pin configuration is not proven from this BIN alone. Verify clock control/mode and physical XTAL or ECU data before treating as a real timing.
+
+**Next research action:** trace all accesses to `SYNCR` at `0xFFA04` with correct `YK=0xF, IY=0xFA00`, especially `0x007144–0x007170`, verify any subsequent PLL changes and reset clock mode, and determine oscillator frequency from board markings or manufacturer documentation. The IRQ type/clock division is now highly corroborated, while **real-time milliseconds** remain conditional.
+
+**Supersession notice:** Previous documentation that said `0xFFA50` was unassigned or potentially `CSBAR1`, or that `0xFFA5A` was `CSOR3`, is **superseded** by this cross-confirmed SLIM/RTC interpretation. Do not silently transfer Ghidra's older SCIM/SIM peripheral labels into the CarBerry Y5 target.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
