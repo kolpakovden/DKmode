@@ -97,6 +97,29 @@ New observations beyond the baseline-adaptation branches:
 
 **Highest-priority next step:** inspect `FUN_000BA6` around `0x000BA6–0x000BC0` plus its caller(s), and search `TBEK` in initialization/call chain. Identify any ROM load mapping/banking independently before extracting calibration values `0x02865C–0x02867A`. The physical TPS meaning remains unproven.
 
+
+## Caller `FUN_000BA6` and bank propagation (2026-10-20)
+
+Ghidra establishes a direct caller `FUN_0009EE:0x000AEA` -> `FUN_000BA6:0x000BA6`. The caller dispatches:
+```asm
+000BA6 JSR FUN_00D040
+000BAA JSR FUN_008826
+000BAE JSR FUN_00906A
+000BB2 JSR FUN_008CD0
+000BB6 JSR FUN_004E0A   ; updates/compares baseline 0x03C8
+000BBA JSR FUN_004FBC
+000BBE JSR FUN_004FF6
+000BC2 JSR FUN_00503A
+000BC6 JSR FUN_019A22
+000BCA JSR FUN_019A4A
+000BCE TEKB
+000BD0 TBXK
+000BD2 TBYK
+```
+**Correction on transfer direction:** `TEKB` copies EK **to** accumulator B (`EK -> B[3:0]`, high nibble cleared); `TBEK` is the reverse (`B -> EK`). `TBXK` and `TBYK` then transfer B to their respective banks, effectively synchronizing XK/YK with current EK after the listed calls, without modifying EK. This is documented in Motorola CPU16 Reference Manual Table 5-27: https://www.nxp.com/docs/en/reference-manual/CPU16RM.pdf
+
+The value of EK on entry to `FUN_004E0A` is still unknown: inspect `FUN_0009EE` around `0x000ACA–0x000B00` AND possible `TBEK` in four predecessor callees (including nested calls), or global initialization. Neither the inferred `0x02865C` effective calibration address nor the file offset is yet proven.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
