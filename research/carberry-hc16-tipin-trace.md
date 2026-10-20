@@ -148,6 +148,13 @@ Disassembly of `0x000B40–0x000BA4`: the function consists of 22 sequential `JS
 ```
 Bank groups propagate `EK` to `XK` and `YK`, not vice versa. Their position suggests callers expect a coordinated bank context, but **does not determine EK**. Any nested callee could set it, and `FUN_000BA6` itself calls four routines before `FUN_004E0A`. A faster next step is a **program-wide `TBEK` listing with addresses**, then examine relevant callers/initializers rather than requesting all 22 callees. Also inspect `FUN_0009EE` prologue. Continue to treat `0x02865C` as an unverified Ghidra bank-derived address, not a ROM file offset.
 
+
+## Ghidra TBEK mnemonic search results (2026-10-20)
+
+Researcher screenshot of **Search Program Text → Instruction Mnemonics** reports two recognized `TBEK` instructions: **`0x0009CA` in `FUN_0009B6`**, and **`0x000A74` in `FUN_0009EE`**. This is a promising lead: `FUN_0009EE` dispatches to `FUN_000B40` at `0x000AD8`, then `FUN_000BA6` at `0x000AEA`, and `FUN_000BA6` calls `FUN_004E0A` at `0x000BB6`. The source of B at both `TBEK` instructions remains to be determined. Do **not** equate mnemonic-search results with proof of all possible executable `TBEK` bytes when analysis coverage may be incomplete; screenshot showed a Search Selection checkbox still checked (though results outside currently visible green selection appeared), so repeat full-program unrestricted search if necessary.
+
+Next evidence requested: disassembly `0x0009B0–0x0009E0` and `0x000A58–0x000A90`, especially instructions loading B immediately before both `TBEK`. Then verify no intervening bank changes before `0x000BB6`; only after that map EK-relative calibration addresses to actual ROM bytes.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
