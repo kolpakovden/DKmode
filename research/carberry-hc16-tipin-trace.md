@@ -367,6 +367,41 @@ This supports the earlier handler cadence hypothesis: at `0x00033C` the routine 
 
 **Next targeted research:** in Ghidra find all references to `DAT_0FFA50` or instruction operands `0x50,IY` while `IY=FA00`, plus initialization configuring vector `0xA0`. Inspect the adjacent vector `0xA1` ISR `0x000374` for shared peripheral setup. Find the relevant interrupt controller/timer clock and divisor, then compute the period in milliseconds. Keep study offline; no modification to flashable ROM.
 
+
+## v65 — adjacent interrupt vector A1 is a trap; IRQ A0 cadence still unresolved (2026-10-20)
+
+User supplied Ghidra HC16 disassembly `0x000374–0x0003C4`. Independently cross-checked original ROM byte ranges at `0x000130–0x000150`, `0x000240–0x000252`, `0x000374–0x0003C4`. Vector table words at file offsets `0x000140` and `0x000142` are `02 F4` and `03 74`, respectively, so normal 16-bit vector decoding gives `A0 -> 0x0002F4` and `A1 -> 0x000374`.
+
+```asm
+000374 PSHM   #0x3F
+000376 LDAB   #0x02
+000378 TBZK
+00037A LDZ    #0x0000
+00037E JMP    FUN_000240
+```
+
+The common target `FUN_000240` is **not** an interrupt scheduling routine:
+
+```asm
+000240 ORP   #0x00E0
+000244 ANDP  #0xFFFF
+000248 LDAB  #0x02
+00024A TBZK
+00024C LDZ   #0x0000
+000250 BRA   0x00024C   ; endless loop
+```
+
+**Conclusion:** A1 vectors into a halt/trap-like infinite loop; it is not a second regular ADC/TPS servicing ISR. The semantics of why A1 traps (unused vector, unexpected peripheral event, software fault) are not established.
+
+Two other vectors appear in this region:
+
+- Table word at `0x00007A` refers to handler `0x000398`, which calls `FUN_0059FE` and returns with `RTI`. Corresponding vector number `0x3D` (not `0x3C`; zero-based 16-bit table index `0x7A/2 = 0x3D`).
+- Table word at `0x00007C` refers to `0x0003AA`, which reads/clears `SPSR` at `IY=0xFC00`, `YK=0x0F` (effective `0xFFC3C`), then jumps to the same infinite loop; vector number `0x3E`. This is a SPI-related exception path, not positive evidence of the TPS sample period.
+
+**Important:** No concrete `T_ISR` in milliseconds follows from these adjacent vectors. The source of vector A0 must be identified from the register acknowledged at `0xFFA50` and whichever initialization configures its interrupt priority/vector/period. Existing documentation for related HC16 variants is insufficient to assert that `0xFFA50` is a specific timer.
+
+**Recommended targeted next Ghidra query:** locate all references to `DAT_0FFA50`, and check code assigning the vector `0xA0` to hardware peripherals or configuring registers in the `0xFFA00` window (distinguish adjacent SPI/QADC/timer modules). Search by Ghidra **Instruction Operands** or direct scalar reference, and ensure **Search Selection is OFF**. An additional useful cut is `0x0003AA–0x0003CE` already documented, so do not request it again.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
