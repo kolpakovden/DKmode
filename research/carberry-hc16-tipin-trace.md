@@ -127,6 +127,27 @@ Pasted Ghidra trace shows `FUN_0009EE` conditionally invokes `FUN_000B40` at `0x
 
 **Bank caveat:** This `0x000ACA–0x000B26` slice contains no `TBEK`. `FUN_000B40`, which runs before the selected branch, might alter bank state (not yet proven). Next inspect `FUN_000B40` and its callees, together with any `TBEK` instructions along the path leading into `FUN_000BA6`. Also verify earlier bank setup in `FUN_0009EE`, not visible in supplied slice.
 
+
+## FUN_000B40 expanded dispatcher (2026-10-20)
+
+Disassembly of `0x000B40–0x000BA4`: the function consists of 22 sequential `JSR` operations, two bank-alignment groups, and `RTS`; **no local `TBEK`**. Its first calls are `FUN_001B28`, `FUN_001CB4`, `FUN_001AFE`, `FUN_002242`, `FUN_00888E`, `FUN_0030F0`, `FUN_005252`, `FUN_0025E4`, `FUN_00263E`, `FUN_0199FC`, `FUN_003E1A`, `FUN_0097AE`, `FUN_003D18`, `FUN_015182`, `FUN_016196`, `FUN_0161C8`, followed by:
+```asm
+000B80  TEKB
+000B82  TBXK
+000B84  TBYK
+000B86  JSR FUN_0177E8
+000B8A  TEKB
+000B8C  TBXK
+000B8E  TBYK
+000B90  JSR FUN_01B972
+000B94  JSR FUN_019AF2
+000B98  JSR FUN_012DEE
+000B9C  JSR FUN_012206
+000BA0  JSR FUN_000F5A
+000BA4  RTS
+```
+Bank groups propagate `EK` to `XK` and `YK`, not vice versa. Their position suggests callers expect a coordinated bank context, but **does not determine EK**. Any nested callee could set it, and `FUN_000BA6` itself calls four routines before `FUN_004E0A`. A faster next step is a **program-wide `TBEK` listing with addresses**, then examine relevant callers/initializers rather than requesting all 22 callees. Also inspect `FUN_0009EE` prologue. Continue to treat `0x02865C` as an unverified Ghidra bank-derived address, not a ROM file offset.
+
 ## Cross references
 
 - [SD / transient fueling baseline](sd-tip-in.md)
