@@ -44,6 +44,7 @@ DKmode также не заменяет и не переписывает ист�
 - [Архитектура и жизненный цикл патча](docs/architecture.md)
 - [План исследований](docs/roadmap.md)
 - [Начальный анализ SD / Tip-in](research/sd-tip-in.md)
+- [CarBerry HC16: трассировка QADC → Tip-in и адаптивной поправки (v58)](research/carberry-hc16-tipin-trace.md)
 
 ## Правила работы
 
