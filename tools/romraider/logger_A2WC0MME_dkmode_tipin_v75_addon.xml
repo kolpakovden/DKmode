@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  DKmode v75 - RESEARCH logger addon for OEM Tip-in observation (READ ONLY).
+
+  Target ECU ID : 1356212FFF (A2WC012E / A2WC0MME builds used in forester_A2WC012E).
+  RAM addresses : code-traced on the proxy ROMs v63..v70 (status PROXY-CONFIRMED),
+                  including v68_SPARK_CUT_ENABLED (SHA-256 8f02eecf...), the last
+                  build with a vehicle-confirmed log in forester_A2WC012E.
+  NOT verified  : that the ROM currently in the car is one of those builds.
+                  Compute the SHA-256 of the installed ROM first
+                  (research/sh7055-tipin-v75-measurement-readiness.md, sec. 5).
+                  For any other SHA the addresses are UNVERIFIED.
+
+  Storage: SH7055 is big-endian; RomRaider reads multi-byte values big-endian.
+  E7501..E7505 and E7510 are 4-byte IEEE float, E7506..E7508 are uint8, E7509 is uint16.
+
+  Install: do NOT edit your original logger. Generate a merged copy with
+    python tools/romraider/merge_logger_addon.py <your_logger.xml> \
+        tools/romraider/logger_A2WC0MME_dkmode_tipin_v75_addon.xml <new_logger.xml>
+  and point RomRaider (Settings > Logger Definition Location) to <new_logger.xml>.
+-->
+<ecuparams>
+    <ecuparam id="E7501" name="DKmode Throttle Plate Opening Angle B024" desc="E7501-RAM 0xFFFFB024 conditioned throttle (input of OEM Delta TPS 0x171C6). Same address as E38. Research parameter." target="1">
+        <ecu id="1356212FFF"><address length="4">0xFFB024</address></ecu>
+        <conversions>
+            <conversion units="%" storagetype="float" expr="x/.84" format="0.00" gauge_min="0" gauge_max="100" gauge_step="10" />
+            <conversion units="raw B024" storagetype="float" expr="x" format="0.000" />
+        </conversions>
+    </ecuparam>
+    <ecuparam id="E7502" name="DKmode Delta TPS B028" desc="E7502-RAM 0xFFFFB028 = B024[n]-B024[n-2], updated once per task-9 run. Same address as E54. Research parameter." target="1">
+        <ecu id="1356212FFF"><address length="4">0xFFB028</address></ecu>
+        <conversions>
+            <conversion units="raw B024" storagetype="float" expr="x" format="0.000" gauge_min="-20" gauge_max="40" gauge_step="5" />
+            <conversion units="% per 2 runs" storagetype="float" expr="x/.84" format="0.000" />
+        </conversions>
+    </ecuparam>
+    <ecuparam id="E7503" name="DKmode Tip-in Enrichment B80C" desc="E7503-RAM 0xFFFFB80C last calculated Tip-in amount (latched, not cleared). Unit microseconds per v72. Same address as E55." target="1">
+        <ecu id="1356212FFF"><address length="4">0xFFB80C</address></ecu>
+        <conversions>
+            <conversion units="ms" storagetype="float" expr="x*0.001" format="0.0000" gauge_min="0" gauge_max="6" gauge_step="1" />
+            <conversion units="us" storagetype="float" expr="x" format="0.0" />
+        </conversions>
+    </ecuparam>
+    <ecuparam id="E7504" name="DKmode Tip-in Cumulative Delta B814" desc="E7504-RAM 0xFFFFB814 accumulated Delta TPS of the current Tip-in series (limit ROM 0x58DAC). Research parameter." target="1">
+        <ecu id="1356212FFF"><address length="4">0xFFB814</address></ecu>
+        <conversions>
+            <conversion units="raw B024" storagetype="float" expr="x" format="0.000" gauge_min="0" gauge_max="40" gauge_step="5" />
+        </conversions>
+    </ecuparam>
+    <ecuparam id="E7505" name="DKmode Injector Latency B8D8" desc="E7505-RAM 0xFFFFB8D8 injector latency (microseconds) = RAM 0xFFFF91E0 * 0.25. Same address as E50." target="1">
+        <ecu id="1356212FFF"><address length="4">0xFFB8D8</address></ecu>
+        <conversions>
+            <conversion units="ms" storagetype="float" expr="x*0.001" format="0.0000" gauge_min="0" gauge_max="6" gauge_step="1" />
+        </conversions>
+    </ecuparam>
+    <ecuparam id="E7506" name="DKmode Tip-in Event Count B818" desc="E7506-RAM 0xFFFFB818 uint8 Tip-in events in current series (limit ROM 0x58852, saturates 255). Research parameter." target="1">
+        <ecu id="1356212FFF"><address>0xFFB818</address></ecu>
+        <conversions>
+            <conversion units="count" expr="x" format="0" gauge_min="0" gauge_max="16" gauge_step="2" />
+        </conversions>
+    </ecuparam>
+    <ecuparam id="E7507" name="DKmode Task9 Runs Since Tip-in B821" desc="E7507-RAM 0xFFFFB821 uint8 task-9 runs since last Tip-in event (saturates 255; reset thresholds ROM 0x58853/0x58854). Research parameter." target="1">
+        <ecu id="1356212FFF"><address>0xFFB821</address></ecu>
+        <conversions>
+            <conversion units="runs" expr="x" format="0" gauge_min="0" gauge_max="255" gauge_step="25" />
+        </conversions>
+    </ecuparam>
+    <ecuparam id="E7508" name="DKmode Task9 Lost Activations 94E4" desc="E7508-RAM 0xFFFF94E4 uint8 count of rejected ActivateTask(9) (E_OS_LIMIT), saturates 255. Research parameter." target="1">
+        <ecu id="1356212FFF"><address>0xFF94E4</address></ecu>
+        <conversions>
+            <conversion units="count" expr="x" format="0" gauge_min="0" gauge_max="255" gauge_step="25" />
+        </conversions>
+    </ecuparam>
+    <ecuparam id="E7509" name="DKmode CMT1 Half-Tick Counter 94F0" desc="E7509-RAM 0xFFFF94F0 uint16 big-endian, +1 every 2 CMT1 ticks, wraps at 65536. Expected 500/s if Pphi=20 MHz. Two bytes may be read non-atomically. Research parameter." target="1">
+        <ecu id="1356212FFF"><address length="2">0xFF94F0</address></ecu>
+        <conversions>
+            <conversion units="count" storagetype="uint16" expr="x" format="0" gauge_min="0" gauge_max="65535" gauge_step="8192" />
+        </conversions>
+    </ecuparam>
+    <ecuparam id="E7510" name="DKmode Tip-in Applied Amount B810" desc="E7510-RAM 0xFFFFB810 amount actually sent to the injector path at the last Tip-in event (us). B80C is written even when the amount threshold blocks; B810 only when fired. Research parameter." target="1">
+        <ecu id="1356212FFF"><address length="4">0xFFB810</address></ecu>
+        <conversions>
+            <conversion units="ms" storagetype="float" expr="x*0.001" format="0.0000" gauge_min="0" gauge_max="6" gauge_step="1" />
+            <conversion units="us" storagetype="float" expr="x" format="0.0" />
+        </conversions>
+    </ecuparam>
+</ecuparams>
