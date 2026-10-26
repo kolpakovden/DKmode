@@ -8,6 +8,8 @@
 - \`Forester_SG9_MAP_clean_v25.bin\`: 524288 bytes, SHA-256 \`2ca539d0c47e3b1eec96c41e1e514c7b19b0e3786e9d826a41d3a3505b4c5d99\`.
 - Byte-for-byte unchanged between both: scheduler descriptors \`0x4640..0x47CF\`, scheduler \`0x37BC..0x3811\` and \`0x3F20..0x3F6F\`, task-9 handler \`0x6330..0x6369\`, Tip-in call chain \`0x1028C..0x1040F\`.
 
+> **v71 correction (2026-10-26):** records are indexed as `0x469C + 16*id` (not `0x46A0 + 16*i`). For task 9 the record is `0x472C`: +0 `04000200` (byte+2 = priority 2), +4 state `0xFFFF71E4`, +8 handler `0x6330`, +12 `02000000` (byte = activation limit 2). The `cfg1 = 0x04000100` below belongs to task 10. Wakeup source and period: see [v71](sh7055-tipin-v71-task9-wakeup.md).
+
 ## 19-task table
 
 The 16-bit value at \`ROM 0x4648\` is \`0x0013\` = **19 tasks**. The literal \`ROM[0x3810]\` referenced by instruction \`0x37C0\` yields the anchor \`0x0000469C\`. The scheduler's \`0x37C8: SHLL2 R13\`, \`0x37CA: SHLL2 R13\`, \`0x37CC: ADD R3,R13\`, \`0x37CE: MOV.L @(4,R13),R14\` show **16-byte descriptor indexing**. The first descriptor is at \`0x46A0\`.

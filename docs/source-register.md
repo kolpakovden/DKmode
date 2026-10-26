@@ -10,6 +10,8 @@
 | F-004 | [LC spark cut](https://github.com/kolpakovden/forester_A2WC012E/blob/main/docs/launch-control-spark-cut.md) | LC/FFS интерфейсы и наблюдения mixed fuel/spark cut | v68 vehicle evidence; v69 experimental в исходном документе |
 | F-005 | [FFS v85](https://github.com/kolpakovden/forester_A2WC012E/blob/main/docs/v85-ffs-spark-cut.md) | История FFS spark-cut и ограничение старого подхода | EXPERIMENTAL / требуется повторная проверка перед повторным использованием |
 | F-006 | [Research backlog](https://github.com/kolpakovden/forester_A2WC012E/blob/main/docs/research-backlog.md) | Неисследованные вопросы и требования к тестам | HYPOTHESIS/REFERENCE |
+| F-008 | [fenugrec/npkern](https://github.com/fenugrec/npkern) `ivect.h`, `reg_defines/7055_350nm.h`, `platf.h` | Номера векторов SH7055 INTC, адреса периферии (CMT/SCI/AD), эмпирическая формула скорости SCI | REFERENCE (внешний, GPL-3; код не копируется) — использован в v71 |
+| F-009 | `forester_sg9_sti_MAP_IAT_GM_dMap_v63.bin` (SHA-256 `2ee7056b…ebc6eef8`) и v67/v68/v69/v70 из forester_A2WC012E | PROXY-ROM для v71: все анкеры v69/v70 совпадают, калибровки отличаются от v39 | PROXY; не baseline |
 | F-007 | [Known results](https://github.com/kolpakovden/forester_A2WC012E/blob/main/docs/known-results.md) | Наблюдения и проверенные на автомобиле факты | Историческое evidence; не DKmode validation |
 
 ## Проверенные исходные образцы из F-003 (пока только ссылки)
