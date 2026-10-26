@@ -53,6 +53,8 @@ DKmode также не заменяет и не переписывает ист�
 - [SH-2E дизассемблер без зависимостей (read-only)](tools/analysis/sh2e_disasm.py)
 - [v72: исполнительный путь OEM Tip-in до ATU-II DCNT8, коррекции TPS, сравнение с CarBerry](research/sh7055-tipin-v72-injector-path.md)
 - [v73: машина состояний выхода форсунки, латентность, маска запрета, порт K](research/sh7055-tipin-v73-output-state-machine.md)
+- [v74: модель OEM Tip-in, план логирования и критерии «калибровка или DKmode»](research/sh7055-tipin-v74-observer-test-plan.md)
+- [v74: офлайн-модель OEM Tip-in по калибровкам конкретной ROM](tools/analysis/sh7055_tipin_model_v74.py)
 - [v69: офлайн-проверка ROM v25/v39](tools/analysis/sh7055_tipin_v69_audit.py)
 - [CarBerry RTC: проверяемый офлайн-расчётчик](tools/analysis/carberry_rtc_timing.py)
 
