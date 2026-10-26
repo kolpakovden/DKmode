@@ -51,6 +51,7 @@ DKmode также не заменяет и не переписывает ист�
 - [v70: офлайн-аудит таблицы задач и цепочки Tip-in](tools/analysis/sh7055_task_v70_audit.py)
 - [v71: источник пробуждения задачи №9 (CMT1), период активации, масштаб TPS, путь OEM Tip-in](research/sh7055-tipin-v71-task9-wakeup.md)
 - [SH-2E дизассемблер без зависимостей (read-only)](tools/analysis/sh2e_disasm.py)
+- [v72: исполнительный путь OEM Tip-in до ATU-II DCNT8, коррекции TPS, сравнение с CarBerry](research/sh7055-tipin-v72-injector-path.md)
 - [v69: офлайн-проверка ROM v25/v39](tools/analysis/sh7055_tipin_v69_audit.py)
 - [CarBerry RTC: проверяемый офлайн-расчётчик](tools/analysis/carberry_rtc_timing.py)
 
