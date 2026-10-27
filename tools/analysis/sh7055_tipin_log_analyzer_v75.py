@@ -57,10 +57,23 @@ def split_units(col):
     return (m.group(1), m.group(2)) if m else (col, "")
 
 
+def sniff(path):
+    """RomRaider writes ',' + '.' or (locale) ';' + decimal comma."""
+    first = open(path, encoding="utf-8", errors="replace").readline()
+    delim = ";" if first.count(";") > first.count(",") else ","
+    return delim, (delim == ";")
+
+
+def num(s, dec_comma):
+    s = s.strip()
+    return float(s.replace(",", ".") if dec_comma else s)
+
+
 def load_csv(path):
-    rows = list(csv.reader(open(path, newline="", encoding="utf-8", errors="replace")))
+    delim, dec_comma = sniff(path)
+    rows = list(csv.reader(open(path, newline="", encoding="utf-8", errors="replace"), delimiter=delim))
     head, data = rows[0], [r for r in rows[1:] if r and r[0].strip()]
-    t = [parse_time(r[0]) for r in data]
+    t = [parse_time(r[0].replace(",", ".") if dec_comma else r[0]) for r in data]
     for i in range(1, len(t)):                    # midnight rollover
         while t[i] < t[i - 1] - 43_200_000:
             t[i] += 86_400_000
@@ -75,7 +88,7 @@ def load_csv(path):
                     vals = []
                     for r in data:
                         try:
-                            vals.append(float(r[j]))
+                            vals.append(num(r[j], dec_comma))
                         except (ValueError, IndexError):
                             vals.append(math.nan)
                     cols[key] = normalise(key, kind, unit, vals)

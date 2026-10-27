@@ -237,6 +237,20 @@ class AnalyzerTests(unittest.TestCase):
         s2 = A.events(t, cols, cal2)["series"][0]
         self.assertEqual(s2["limiting_factor"]["category"], "unavailable")
 
+    def test_semicolon_decimal_comma_locale(self):
+        d = tempfile.mkdtemp(); p = os.path.join(d, "loc.csv")
+        with open(p, "w") as f:
+            f.write("Time (msec);Engine Speed (rpm);DKmode CMT1 Half-Tick Counter 94F0 (count);"
+                    "DKmode Throttle Plate Opening Angle B024 (%)\n")
+            c = 65000
+            for i in range(400):
+                f.write("%d;876;%d;3,96\n" % (i * 77, (c + int(i * 77 * 0.5)) % 65536))
+        t, cols, info = A.load_csv(p)
+        self.assertEqual(t[1], 77.0)
+        self.assertAlmostEqual(cols["B024"][0], 3.96 * 0.84)
+        r = A.cmt1_rate(t, cols["94F0"])
+        self.assertAlmostEqual(r["counts_per_s"], 500.0, delta=1.0)
+
     def test_time_parsing(self):
         self.assertAlmostEqual(A.parse_time("00:11:07.732"), 667732.0)
         self.assertEqual(A.parse_time("1234.5"), 1234.5)

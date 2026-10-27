@@ -56,6 +56,7 @@ DKmode также не заменяет и не переписывает ист�
 - [v74: модель OEM Tip-in, план логирования и критерии «калибровка или DKmode»](research/sh7055-tipin-v74-observer-test-plan.md)
 - [v74: офлайн-модель OEM Tip-in по калибровкам конкретной ROM](tools/analysis/sh7055_tipin_model_v74.py)
 - [v75: готовность измерений — логгер RomRaider, анализатор логов, идентификация ROM, тесты](research/sh7055-tipin-v75-measurement-readiness.md)
+- [v76: первые логи с автомобиля — CMT1 = 500.12 отсч./с (Pφ 20 МГц, задача №9 = 8.00 мс), ХХ без потерь активаций](research/sh7055-tipin-v76-first-vehicle-logs.md)
 - [v69: офлайн-проверка ROM v25/v39](tools/analysis/sh7055_tipin_v69_audit.py)
 - [CarBerry RTC: проверяемый офлайн-расчётчик](tools/analysis/carberry_rtc_timing.py)
 
