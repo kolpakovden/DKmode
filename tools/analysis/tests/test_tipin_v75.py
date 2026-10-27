@@ -286,14 +286,14 @@ class LoggerXmlTests(unittest.TestCase):
 class RomTests(unittest.TestCase):
     def test_load_and_ramp(self):
         cal = M.load(os.environ["DKMODE_ROM"])
-        self.assertIn(cal["status"], ("ROM-CONFIRMED", "PROXY-CONFIRMED"))
+        self.assertTrue(cal["status"].startswith(("ROM-CONFIRMED", "PROXY-CONFIRMED", "CODE-AUDITED")))
         ev, _ = M.run(cal, M.Ramp("5:35:120", 200.0, 85.0), 8.0)
         self.assertLessEqual(sum(e["fired"] for e in ev), cal["max_events"])
 
     def test_identify_known_and_modified(self):
         import rom_identify_v75 as I
         rep = I.identify(os.environ["DKMODE_ROM"])
-        self.assertIn(rep["level"], ("KNOWN-ROM", "KNOWN-PROXY"))
+        self.assertIn(rep["level"], ("KNOWN-ROM", "KNOWN-PROXY", "KNOWN-AUDITED"))
         self.assertTrue(all(rep["logger_ram_anchors"].values()))
         b = bytearray(Path(os.environ["DKMODE_ROM"]).read_bytes())
         b[0x7FFF0] ^= 1                               # unrelated byte -> unknown SHA

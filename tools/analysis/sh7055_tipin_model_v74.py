@@ -43,6 +43,9 @@ KNOWN = {
     "02581366d410326102c8ca7ffe7f483e2b1ecdc1f7363cd8a7eac663c8d6e4aa": ("v69_CLEAN_SPARK_CUT", "PROXY"),
     "b3bb642372636c7abb312e7659f91ad4e69d683afe0a2d4d681eb3a405715ec2": ("v69_CLEAN_SPARK_SAFE", "PROXY"),
     "fd01d605b42e06d1f712faf24ba1c57736e4d7bebea29f1957a71b1bc95317f2": ("v70_DUALMAP_TEST", "PROXY"),
+    # v76: owner's ROM used for the 2026-10-27 vehicle logs; 28 code regions
+    # byte-identical to v63/v68 (tools/analysis/rom_code_audit_v76.py)
+    "8c4bd8e20502c8a5f3d6fe5d565d19c26ed7153386ca37b67822408e04765369": ("v54_MAP_clean_0_85_bar", "AUDITED"),
 }
 # literal pool of 0x24A04 -> expected pointer (code-identical in v25/v39/proxies)
 POOL = {0x24BA4: 0x58853, 0x24BA8: 0x58854, 0x24BAC: 0x58DA4, 0x24BB0: 0x58852,
@@ -124,7 +127,8 @@ def load(path):
             raise SystemExit("Tip-in literal pool mismatch at 0x%X" % lit)
     name, kind = KNOWN[sha]
     return {
-        "rom": name, "status": "ROM-CONFIRMED" if kind == "ROM" else "PROXY-CONFIRMED",
+        "rom": name, "status": {"ROM": "ROM-CONFIRMED", "PROXY": "PROXY-CONFIRMED",
+                   "AUDITED": "CODE-AUDITED (v76, equals v63/v68 code)"}[kind],
         "sha256": sha,
         "min_delta": f32(b, 0x58DA4),            # B028 units (= 0.84 per %)
         "min_amount_us": f32(b, 0x58DA8),        # compared with B80C (us)

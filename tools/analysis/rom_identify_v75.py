@@ -47,7 +47,7 @@ def identify(path):
            "merpmod_signature": b.find(b"MeRpMoD") >= 0}
     if sha in KNOWN:
         name, kind = KNOWN[sha]
-        rep["level"] = "KNOWN-ROM" if kind == "ROM" else "KNOWN-PROXY"
+        rep["level"] = {"ROM": "KNOWN-ROM", "PROXY": "KNOWN-PROXY", "AUDITED": "KNOWN-AUDITED"}[kind]
         rep["name"] = name
     else:
         rep["level"] = "UNKNOWN"
