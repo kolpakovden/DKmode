@@ -245,6 +245,39 @@ def events(t, cols, cal):
     return {"per_sample": rows, "series": series}
 
 
+TPS_LSB = 25.0 * 5.0 / 1024.0      # one 10-bit ADC step in B024 units (v76)
+
+
+def amount_value_check(cols, tables, k_max=260):
+    """Compare every distinct logged B80C/B810 with the model set
+    F(F(T(k*LSB) * Kb) * Ke), Kb over the flat K_boost table values,
+    Ke = K_ect at the median logged ECT (85 C if not logged)."""
+    import sh7055_tipin_model_v74 as M
+    T, KB, KE = tables["tip"], tables["kboost"], tables["kect"]
+    for tb in (T, KB, KE):
+        tb.r = M.F
+    ects = [x for x in cols.get("ECT", []) if not math.isnan(x)]
+    ect = statistics.median(ects) if ects else 85.0
+    ke = KE(ect)
+    kbs = sorted(set(KB(a) for a in KB.axis))
+    pred = {}
+    for k in range(1, k_max):
+        d = M.F(k * TPS_LSB)
+        if d < tables["min_delta"]:
+            continue
+        for kb in kbs:
+            v = M.F(M.F(T(d) * kb) * ke)
+            pred.setdefault(round(v, 1), (k, kb))
+    seen = sorted(set(round(x, 1) for key in ("B80C", "B810") for x in cols.get(key, []) if not math.isnan(x)))
+    rows = [{"value_us": v, "match": v in pred, "delta_lsb": pred.get(v, (None,))[0],
+             "kboost": pred.get(v, (None, None))[1]} for v in seen]
+    matched = sum(r["match"] for r in rows)
+    return {"category": "counter-derived", "ect_used_c": ect, "kect": ke, "kboost_candidates": kbs,
+            "distinct_values": len(rows), "matched": matched, "values": rows,
+            "note": "match = logged value equals model output for delta = k*LSB exactly (0.1 us); "
+                    "validates T(delta) and the K-product, not timing"}
+
+
 def plot(t, cols, out):
     try:
         import matplotlib
@@ -272,9 +305,11 @@ def analyze(path, rom=None, out_dir=None, do_plot=False):
     t, cols, info = load_csv(path)
     smp = sampling(t)
     cal = None
+    tables = None
     if rom:
         from sh7055_tipin_model_v74 import load
         c = load(rom)
+        tables = c
         cal = {k: c[k] for k in ("rom", "status", "sha256", "min_delta", "min_amount_us",
                                  "max_cum_delta", "max_events", "reset_events_after", "reset_cum_after")}
     mode = "daq" if smp.get("median_dt_ms") is not None and smp["median_dt_ms"] <= 2.0 else "ssm"
@@ -300,12 +335,17 @@ def analyze(path, rom=None, out_dir=None, do_plot=False):
     else:
         rep["unavailable"].append("lost activations: 94E4 not logged")
     ev = events(t, cols, cal)
+    if tables is not None and ("B80C" in cols or "B810" in cols):
+        rep["counter_derived"]["amount_value_check"] = amount_value_check(cols, tables)
     if ev:
         rep["counter_derived"]["tipin_series"] = ev["series"]
         rep["counter_derived"]["samples_with_event"] = sum(1 for r in ev["per_sample"] if r["event"])
     else:
         rep["unavailable"].append("Tip-in events: neither B818 nor B821 logged")
     if mode == "ssm":
+        rep["row_snapshot_note"] = ("an SSM row is not an atomic snapshot: addresses are read one after another "
+                                    "while the reply is sent (about 2 ms per byte at 4800 baud), so values in one "
+                                    "row can come from different task-9 runs")
         rep["unavailable"] += [
             "per-run Delta TPS sequence and exact event times (8 ms resolution) - needs DAQ TPS",
             "extra injector pulse timing and width - needs injector-signal DAQ",

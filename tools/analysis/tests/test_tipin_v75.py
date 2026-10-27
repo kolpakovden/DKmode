@@ -251,6 +251,17 @@ class AnalyzerTests(unittest.TestCase):
         r = A.cmt1_rate(t, cols["94F0"])
         self.assertAlmostEqual(r["counts_per_s"], 500.0, delta=1.0)
 
+    def test_amount_value_check(self):
+        cal = synth_cal(min_delta=0.2)
+        lsb = A.TPS_LSB
+        good = M.F(M.F(cal["tip"](M.F(4 * lsb)) * cal["kboost"](0.0)) * cal["kect"](85.0))
+        cols = {"B80C": [good, good], "B810": [123.456], "ECT": [85.0]}
+        r = A.amount_value_check(cols, cal)
+        vals = {v["value_us"]: v for v in r["values"]}
+        self.assertTrue(vals[round(good, 1)]["match"])
+        self.assertEqual(vals[round(good, 1)]["delta_lsb"], 4)
+        self.assertFalse(vals[123.5]["match"])
+
     def test_time_parsing(self):
         self.assertAlmostEqual(A.parse_time("00:11:07.732"), 667732.0)
         self.assertEqual(A.parse_time("1234.5"), 1234.5)
